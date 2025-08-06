@@ -1,5 +1,5 @@
 # Dataset files (too large for Git)
-datasets/
+datasets/IRMAS/
 *.wav
 *.mp3
 *.flac
