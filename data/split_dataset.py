@@ -108,11 +108,11 @@ if __name__ == "__main__":
         # Save splits
         save_splits(X_train, X_val, y_train, y_val)
         
-        print("\n✅ Dataset splitting completed successfully!")
+        print("\nDataset splitting completed successfully!")
         
     except FileNotFoundError as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         print("Please run the feature extractor first to generate processed data.")
         print("Run: python data/feature_extractor.py")
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")

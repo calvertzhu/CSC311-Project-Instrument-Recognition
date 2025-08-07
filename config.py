@@ -11,8 +11,16 @@ DATA_CONFIG = {
     "feature_type": "mel",
     "n_mels": 128,
     "target_shape": [128, 128],
+
+    # Training data paths
     "raw_data_dir": PROJECT_ROOT / "datasets" / "IRMAS" / "IRMAS-TrainingData",
-    "processed_data_dir": PROJECT_ROOT / "data" / "processed"
+    "processed_data_dir": PROJECT_ROOT / "data" / "processed",
+
+    # Test data paths (IRMAS has 3 parts)
+    "test_data_part1": PROJECT_ROOT / "datasets" / "IRMAS" / "IRMAS-TestingData-Part1" / "Part1",
+    "test_data_part2": PROJECT_ROOT / "datasets" / "IRMAS" / "IRMAS-TestingData-Part2" / "IRTestingData-Part2",
+    "test_data_part3": PROJECT_ROOT / "datasets" / "IRMAS" / "IRMAS-TestingData-Part3" / "Part3",
+    "test_processed_dir": PROJECT_ROOT / "data" / "test_processed"
 }
 
 # Model configuration
@@ -51,4 +59,6 @@ PATHS = {
 for path in PATHS.values():
     path.mkdir(parents=True, exist_ok=True)
     
-DATA_CONFIG["processed_data_dir"].mkdir(parents=True, exist_ok=True) 
+# Create data directories
+DATA_CONFIG["processed_data_dir"].mkdir(parents=True, exist_ok=True)
+DATA_CONFIG["test_processed_dir"].mkdir(parents=True, exist_ok=True) 
