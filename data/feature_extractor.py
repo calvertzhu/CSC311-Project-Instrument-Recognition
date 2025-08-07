@@ -3,7 +3,6 @@ import librosa
 import librosa.util
 import sys
 from pathlib import Path
-from tqdm import tqdm
 
 # Add project root to path for imports
 sys.path.append(str(Path(__file__).parent.parent))
@@ -16,7 +15,7 @@ def extract_features(path, feature_type='mel', duration=3.0, sr=22050, n_mels=12
     
     Args:
         path: Path to audio file
-        feature_type: Type of features to extract ('mel' or 'mfcc')
+        feature_type: Type of features to extract
         duration: Duration to load in seconds
         sr: Sample rate
         n_mels: Number of mel bands for mel spectrogram
@@ -49,7 +48,7 @@ def build_dataset():
     
     print(f"Processing {len(data)} audio files...")
     
-    for path, label in tqdm(data, desc="Extracting features"):
+    for path, label in data:
         try:
             feat = extract_features(
                 path,
