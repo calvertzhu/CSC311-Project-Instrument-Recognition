@@ -12,6 +12,12 @@ from .test_data_loader import (
     parse_annotation_file,
     create_binary_labels
 )
+from .test_feature_extractor import (
+    extract_test_features,
+    build_test_dataset,
+    save_test_dataset,
+    load_test_dataset
+)
 
 __all__ = [
     'load_file_paths_from_folders',
@@ -26,5 +32,9 @@ __all__ = [
     'load_test_dataset_info',
     'get_test_dataset_statistics',
     'parse_annotation_file',
-    'create_binary_labels'
+    'create_binary_labels',
+    'extract_test_features',
+    'build_test_dataset',
+    'save_test_dataset',
+    'load_test_dataset'
 ] 
