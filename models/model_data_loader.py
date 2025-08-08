@@ -138,29 +138,29 @@ def get_dataset_info():
     test_labels = np.load("data/test_processed/y_test.npy")
     
     print("=" * 60)
-    print("📊 DATASET INFORMATION")
+    print("DATASET INFORMATION")
     print("=" * 60)
     
-    print(f"\n🎵 TRAINING DATA:")
+    print(f"\nTRAINING DATA:")
     print(f"   Samples: {len(train_data)}")
     print(f"   Features: {train_data.shape[1:]} (mel spectrograms)")
     print(f"   Labels: Single-label indices (0-10)")
     print(f"   Classes: {len(np.unique(train_labels))}")
     
-    print(f"\n🎵 VALIDATION DATA:")
+    print(f"\nVALIDATION DATA:")
     print(f"   Samples: {len(val_data)}")
     print(f"   Features: {val_data.shape[1:]} (mel spectrograms)")
     print(f"   Labels: Single-label indices (0-10)")
     print(f"   Classes: {len(np.unique(val_labels))}")
     
-    print(f"\n🎵 TEST DATA:")
+    print(f"\nTEST DATA:")
     print(f"   Samples: {len(test_data)}")
     print(f"   Features: {test_data.shape[1:]} (mel spectrograms)")
     print(f"   Labels: Multi-label binary vectors (11 classes)")
     print(f"   Multi-label samples: {(test_labels.sum(axis=1) > 1).sum()}")
     print(f"   Single-label samples: {(test_labels.sum(axis=1) == 1).sum()}")
     
-    print(f"\n🔧 CONVERSION:")
+    print(f"\nCONVERSION:")
     print(f"   Training/Val: Single-label → Multi-label binary")
     print(f"   Test: Already multi-label (no conversion needed)")
     print(f"   All datasets: Compatible with multi-label models")
@@ -172,14 +172,14 @@ if __name__ == "__main__":
     # Test loading
     train_loader, val_loader, test_loader = create_data_loaders(batch_size=4)
     
-    print(f"\n✅ Data loaders created successfully!")
+    print(f"\nData loaders created successfully!")
     print(f"   Train batches: {len(train_loader)}")
     print(f"   Val batches: {len(val_loader)}")
     print(f"   Test batches: {len(test_loader)}")
     
     # Test a batch
     for batch_idx, (data, labels) in enumerate(train_loader):
-        print(f"\n📦 Sample batch {batch_idx + 1}:")
+        print(f"\nSample batch {batch_idx + 1}:")
         print(f"   Data shape: {data.shape}")
         print(f"   Labels shape: {labels.shape}")
         print(f"   Labels sum: {labels.sum(dim=1)} (should be 1 for training data)")

@@ -1,18 +1,10 @@
 #!/usr/bin/env python3
-"""
-VGG-style CNN for Music Instrument Recognition
-Based on VGG architecture adapted for mel spectrogram input.
-"""
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
 class VGGBlock(nn.Module):
-    """
-    VGG Block: Multiple convolutional layers followed by max pooling.
-    """
     def __init__(self, in_channels, out_channels, num_conv_layers=2, use_batch_norm=True):
         super(VGGBlock, self).__init__()
         

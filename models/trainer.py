@@ -14,7 +14,7 @@ import sys
 
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent))
-from models.data_loader import create_data_loaders, get_dataset_info
+from models.model_data_loader import create_data_loaders, get_dataset_info
 
 class IRMASTrainer:
     """
@@ -129,7 +129,7 @@ class IRMASTrainer:
         Returns:
             Training history
         """
-        print(f"🚀 Starting training for {self.model_name}")
+        print(f"   Starting training for {self.model_name}")
         print(f"   Epochs: {num_epochs}")
         print(f"   Batch size: {self.batch_size}")
         print(f"   Learning rate: {self.learning_rate}")
@@ -159,11 +159,11 @@ class IRMASTrainer:
             if save_best and val_loss < best_val_loss:
                 best_val_loss = val_loss
                 self.save_model(f"{self.model_name}_best.pth")
-                print(f"   💾 Saved best model (val_loss: {val_loss:.4f})")
+                print(f"   Saved best model (val_loss: {val_loss:.4f})")
         
         # Save final model
         self.save_model(f"{self.model_name}_final.pth")
-        print(f"✅ Training completed! Final model saved.")
+        print(f"Training completed! Final model saved.")
         
         return {
             'train_losses': self.train_losses,
@@ -179,7 +179,7 @@ class IRMASTrainer:
         Returns:
             Test metrics
         """
-        print(f"🧪 Evaluating {self.model_name} on test data...")
+        print(f"Evaluating {self.model_name} on test data...")
         
         self.model.eval()
         total_loss = 0.0
@@ -219,7 +219,7 @@ class IRMASTrainer:
         # Calculate per-instrument metrics
         instrument_metrics = self._calculate_instrument_metrics(all_predictions, all_labels)
         
-        print(f"📊 Test Results:")
+        print(f"Test Results:")
         print(f"   Loss: {test_loss:.4f}")
         print(f"   Accuracy: {test_accuracy:.4f}")
         print(f"   Multi-label samples: {(all_labels.sum(axis=1) > 1).sum()}")
@@ -267,7 +267,7 @@ class IRMASTrainer:
         """Load model from file."""
         load_path = self.save_dir / filename
         self.model.load_state_dict(torch.load(load_path))
-        print(f"✅ Loaded model from {load_path}")
+        print(f"Loaded model from {load_path}")
     
     def plot_training_history(self):
         """Plot training history."""
@@ -331,7 +331,7 @@ if __name__ == "__main__":
     get_dataset_info()
     
     print("\n" + "="*60)
-    print("🧪 TESTING TRAINER")
+    print("TESTING TRAINER")
     print("="*60)
     
     # Create a simple test model
@@ -340,7 +340,7 @@ if __name__ == "__main__":
     model = create_vgg_model()
     trainer = IRMASTrainer(model, "test_vgg", batch_size=4)
     
-    print(f"✅ Trainer created successfully!")
+    print(f"Trainer created successfully!")
     print(f"   Train batches: {len(trainer.train_loader)}")
     print(f"   Val batches: {len(trainer.val_loader)}")
     print(f"   Test batches: {len(trainer.test_loader)}") 
