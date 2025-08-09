@@ -40,7 +40,7 @@ class IRMASNN(nn.Module):
     - 3 blocks: 32 -> 64 -> 128 channels
     - 6 conv layers total (2 per block)
     - Global average pooling
-    - Single linear classifier
+    - Classifier: 2 linear layers
     - Multi-label output with sigmoid
     """
     
@@ -81,15 +81,17 @@ class IRMASNN(nn.Module):
         # After 3 blocks with pool_size=2: (batch, 128, 16, 16)
         self.feature_size = 128 // (2 ** len(channels))  # 16
         self.feature_channels = channels[-1]  # 128
+        self.hidden_layer_size = 50
         
         # Global Average Pooling
         self.global_avg_pool = nn.AdaptiveAvgPool2d((1, 1))
         
-        # Simplified classifier - single layer for ultra-fast training
+        # Classifier
         self.classifier = nn.Sequential(
             nn.Dropout(dropout_rate),
-            nn.Linear(self.feature_channels, num_classes),
-            nn.Sigmoid()  # Multi-label classification
+            nn.Linear(self.feature_channels, self.hidden_layer_size),
+            nn.Linear(self.hidden_layer_size, num_classes),
+            nn.Softmax()  # Multi-label classification
         )
         
         # Initialize weights

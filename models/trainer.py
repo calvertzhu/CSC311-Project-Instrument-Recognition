@@ -47,7 +47,7 @@ class IRMASTrainer:
         self.train_loader, self.val_loader, self.test_loader = create_data_loaders(batch_size=batch_size)
         
         # Setup training components
-        self.criterion = nn.BCELoss()  # Binary Cross Entropy for multi-label
+        self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(
             model.parameters(), 
             lr=learning_rate, 
@@ -197,6 +197,7 @@ class IRMASTrainer:
         
         with torch.no_grad():
             for data, labels in self.test_loader:
+                data, labels = data.to(device), labels.to(device)
                 # Forward pass
                 outputs = self.model(data)
                 loss = self.criterion(outputs, labels)
@@ -298,6 +299,8 @@ class IRMASTrainer:
         ax2.grid(True)
         
         plt.tight_layout()
+
+        plt.savefig("primary_model_training.png")
         plt.show()
 
 def train_model(model, model_name, num_epochs=30, batch_size=32, learning_rate=0.001):

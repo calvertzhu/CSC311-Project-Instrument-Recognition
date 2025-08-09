@@ -78,6 +78,7 @@ def train_model(args):
     # Train
     print(f"Training {model_name} for {args.epochs} epochs...")
     trainer.train(args.epochs)
+    trainer.plot_training_history()
     
     # Evaluate if requested
     if not args.no_test:
