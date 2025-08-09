@@ -4,6 +4,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
+global device
+print("Cuda available: ", torch.cuda.is_available())
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 class IRMASBlock(nn.Module):
     def __init__(self, in_channels, out_channels, num_conv_layers=2, use_batch_norm=True):
         super(IRMASBlock, self).__init__()
@@ -36,7 +40,7 @@ class IRMASNN(nn.Module):
     - 3 blocks: 32 -> 64 -> 128 channels
     - 6 conv layers total (2 per block)
     - Global average pooling
-    - Single linear classifier
+    - Classifier: 2 linear layers
     - Multi-label output with sigmoid
     """
     
@@ -77,15 +81,17 @@ class IRMASNN(nn.Module):
         # After 3 blocks with pool_size=2: (batch, 128, 16, 16)
         self.feature_size = 128 // (2 ** len(channels))  # 16
         self.feature_channels = channels[-1]  # 128
+        self.hidden_layer_size = 50
         
         # Global Average Pooling
         self.global_avg_pool = nn.AdaptiveAvgPool2d((1, 1))
         
-        # Simplified classifier - single layer for ultra-fast training
+        # Classifier
         self.classifier = nn.Sequential(
             nn.Dropout(dropout_rate),
-            nn.Linear(self.feature_channels, num_classes),
-            nn.Sigmoid()  # Multi-label classification
+            nn.Linear(self.feature_channels, self.hidden_layer_size),
+            nn.Linear(self.hidden_layer_size, num_classes),
+            nn.Softmax()  # Multi-label classification
         )
         
         # Initialize weights
@@ -187,28 +193,30 @@ def create_irmas_model(config=None):
 
 # Example usage and testing
 if __name__ == "__main__":
-        print(f"\n{'='*50}")
-        print(f"Testing IRMAS NN")
-        print(f"{'='*50}")
-        
-        # Create model
-        config = IRMASConfig()
-        model = create_irmas_model(config)
-        
-        # Create dummy input
-        batch_size = 4
-        x = torch.randn(batch_size, 1, 128, 128)
-        
-        # Forward pass
-        output = model(x)
-        
-        print(f"Input shape: {x.shape}")
-        print(f"Output shape: {output.shape}")
-        print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
-        
-        # Test feature maps
-        feature_maps = model.get_feature_maps(x)
-        for name, feature_map in feature_maps.items():
-            print(f"{name}: {feature_map.shape}")
-        
-        print(f"Output range: [{output.min():.3f}, {output.max():.3f}] (should be [0,1] for sigmoid)") 
+    print(f"\n{'='*50}")
+    print(f"Testing IRMAS NN")
+    print(f"{'='*50}")
+    
+    # Create model
+    config = IRMASConfig()
+    model = create_irmas_model(config)
+    if torch.cuda.is_available():
+        model = model.to(device)
+    
+    # Create dummy input
+    batch_size = 4
+    x = torch.randn(batch_size, 1, 128, 128)
+    
+    # Forward pass
+    output = model(x)
+    
+    print(f"Input shape: {x.shape}")
+    print(f"Output shape: {output.shape}")
+    print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
+    
+    # Test feature maps
+    feature_maps = model.get_feature_maps(x)
+    for name, feature_map in feature_maps.items():
+        print(f"{name}: {feature_map.shape}")
+    
+    print(f"Output range: [{output.min():.3f}, {output.max():.3f}] (should be [0,1] for sigmoid)") 

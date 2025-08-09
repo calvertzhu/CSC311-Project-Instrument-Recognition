@@ -7,6 +7,19 @@ import torch
 import argparse
 import sys
 from pathlib import Path
+import sys
+import argparse
+import json
+import time
+from datetime import datetime
+import warnings
+
+global device
+print("Cuda available: ", torch.cuda.is_available())
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
+# Suppress warnings for cleaner output
+warnings.filterwarnings('ignore')
 
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent))
@@ -50,6 +63,8 @@ def train_model(args):
     
     # Create model
     model, model_name = create_model(args.model, args)
+    if torch.cuda.is_available():
+        model = model.to(device)
     
     # Setup trainer
     trainer = IRMASTrainer(
@@ -64,6 +79,7 @@ def train_model(args):
     # Train
     print(f"Training {model_name} for {args.epochs} epochs...")
     trainer.train(args.epochs)
+    trainer.plot_training_history()
     
     # Plot training history
     print("Generating training plots...")

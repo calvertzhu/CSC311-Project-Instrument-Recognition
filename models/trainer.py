@@ -16,6 +16,10 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from models.model_data_loader import create_data_loaders, get_dataset_info
 
+global device
+print("Cuda available: ", torch.cuda.is_available())
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 class IRMASTrainer:
     """
     Trainer for IRMAS music instrument recognition models.
@@ -53,7 +57,7 @@ class IRMASTrainer:
         self.train_loader, self.val_loader, self.test_loader = create_data_loaders(batch_size=batch_size)
         
         # Setup training components
-        self.criterion = nn.BCELoss()  # Binary Cross Entropy for multi-label
+        self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(
             model.parameters(), 
             lr=learning_rate, 
@@ -78,9 +82,7 @@ class IRMASTrainer:
         total_samples = 0
         
         for batch_idx, (data, labels) in enumerate(self.train_loader):
-            # Move data to device
-            data, labels = data.to(self.device), labels.to(self.device)
-            
+            data, labels = data.to(device), labels.to(device)
             # Forward pass
             outputs = self.model(data)
             loss = self.criterion(outputs, labels)
@@ -113,9 +115,7 @@ class IRMASTrainer:
         
         with torch.no_grad():
             for data, labels in self.val_loader:
-                # Move data to device
-                data, labels = data.to(self.device), labels.to(self.device)
-                
+                data, labels = data.to(device), labels.to(device)
                 # Forward pass
                 outputs = self.model(data)
                 loss = self.criterion(outputs, labels)
@@ -207,9 +207,7 @@ class IRMASTrainer:
         
         with torch.no_grad():
             for data, labels in self.test_loader:
-                # Move data to device
-                data, labels = data.to(self.device), labels.to(self.device)
-                
+                data, labels = data.to(device), labels.to(device)
                 # Forward pass
                 outputs = self.model(data)
                 loss = self.criterion(outputs, labels)
@@ -337,10 +335,7 @@ class IRMASTrainer:
         
         plt.tight_layout()
 
-        save_path = f"{self.model_name}_training_history.png"
-        plt.savefig(save_path, dpi=300, bbox_inches='tight')
-        print(f"Training history plot saved as: {save_path}")
-        
+        plt.savefig("primary_model_training.png")
         plt.show()
 
 def train_model(model, model_name, num_epochs=30, batch_size=32, learning_rate=0.001):
@@ -387,6 +382,8 @@ if __name__ == "__main__":
     from vgg_cnn import create_vgg_model
     
     model = create_vgg_model()
+    if torch.cuda.is_available():
+        model = model.to(device)
     trainer = IRMASTrainer(model, "test_vgg", batch_size=4)
     
     print(f"Trainer created successfully!")
