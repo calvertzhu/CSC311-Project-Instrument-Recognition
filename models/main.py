@@ -16,6 +16,10 @@ import time
 from datetime import datetime
 import warnings
 
+global device
+print("Cuda available: ", torch.cuda.is_available())
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 # Suppress warnings for cleaner output
 warnings.filterwarnings('ignore')
 
@@ -104,6 +108,8 @@ class IRMASTrainingPipeline:
                 config.dropout_rate = self.args.dropout
                 
                 self.model = create_vgg_model(config)
+                if torch.cuda.is_available():
+                    self.model = self.model.to(device)
                 self.model_name = f"vgg_{self.args.config}_irmas"
                 
             elif self.args.model == 'baseline':

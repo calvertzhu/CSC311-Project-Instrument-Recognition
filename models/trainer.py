@@ -16,6 +16,10 @@ import sys
 sys.path.append(str(Path(__file__).parent.parent))
 from models.model_data_loader import create_data_loaders, get_dataset_info
 
+global device
+print("Cuda available: ", torch.cuda.is_available())
+device = "cuda" if torch.cuda.is_available() else "cpu"
+
 class IRMASTrainer:
     """
     Trainer for IRMAS music instrument recognition models.
@@ -68,6 +72,7 @@ class IRMASTrainer:
         total_samples = 0
         
         for batch_idx, (data, labels) in enumerate(self.train_loader):
+            data, labels = data.to(device), labels.to(device)
             # Forward pass
             outputs = self.model(data)
             loss = self.criterion(outputs, labels)
@@ -100,6 +105,7 @@ class IRMASTrainer:
         
         with torch.no_grad():
             for data, labels in self.val_loader:
+                data, labels = data.to(device), labels.to(device)
                 # Forward pass
                 outputs = self.model(data)
                 loss = self.criterion(outputs, labels)
@@ -338,6 +344,8 @@ if __name__ == "__main__":
     from vgg_cnn import create_vgg_model
     
     model = create_vgg_model()
+    if torch.cuda.is_available():
+        model = model.to(device)
     trainer = IRMASTrainer(model, "test_vgg", batch_size=4)
     
     print(f"Trainer created successfully!")
