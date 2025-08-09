@@ -4,9 +4,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 
-class VGGBlock(nn.Module):
+class IRMASBlock(nn.Module):
     def __init__(self, in_channels, out_channels, num_conv_layers=2, use_batch_norm=True):
-        super(VGGBlock, self).__init__()
+        super(IRMASBlock, self).__init__()
         
         layers = []
         for i in range(num_conv_layers):
@@ -28,21 +28,21 @@ class VGGBlock(nn.Module):
         x = self.maxpool(x)
         return x
 
-class VGGCNN(nn.Module):
+class IRMASNN(nn.Module):
     """
-    VGG-style CNN for multi-label music instrument classification.
+    IRMAS Neural Network for multi-label music instrument classification.
     
     Architecture:
-    - VGG blocks with increasing channel sizes
+    - 3 blocks: 32 -> 64 -> 128 channels
+    - 6 conv layers total (2 per block)
     - Global average pooling
-    - Dense classification layers
+    - Single linear classifier
     - Multi-label output with sigmoid
     """
     
     def __init__(self, 
                  input_channels=1,
                  num_classes=11,
-                 vgg_config='A',  # 'A', 'B', 'C', 'D', 'E'
                  use_batch_norm=True,
                  dropout_rate=0.5):
         """
@@ -51,64 +51,40 @@ class VGGCNN(nn.Module):
         Args:
             input_channels: Number of input channels (1 for mel spectrograms)
             num_classes: Number of instrument classes (11 for IRMAS)
-            vgg_config: VGG configuration ('A', 'B', 'C', 'D', 'E')
             use_batch_norm: Whether to use batch normalization
             dropout_rate: Dropout rate for regularization
         """
-        super(VGGCNN, self).__init__()
+        super(IRMASNN, self).__init__()
         
         self.num_classes = num_classes
         self.use_batch_norm = use_batch_norm
         
-        # VGG configurations (channels per block)
-        vgg_configs = {
-            'A': [64, 128, 256, 512, 512],      # VGG-11
-            'B': [64, 128, 256, 512, 512],      # VGG-13
-            'C': [64, 128, 256, 512, 512],      # VGG-16
-            'D': [64, 128, 256, 512, 512],      # VGG-16
-            'E': [64, 128, 256, 512, 512]       # VGG-19
-        }
+        # IRMASNN configuration - 6 layers, 3 blocks
+        channels = [32, 64, 128]               # 3 blocks
+        conv_layers = [2, 2, 2]                # 6 conv layers total (2 per block)
         
-        # Number of conv layers per block
-        conv_layers_per_block = {
-            'A': [1, 1, 2, 2, 2],  # VGG-11
-            'B': [2, 2, 2, 2, 2],  # VGG-13
-            'C': [2, 2, 3, 3, 3],  # VGG-16
-            'D': [2, 2, 3, 3, 3],  # VGG-16
-            'E': [2, 2, 4, 4, 4]   # VGG-19
-        }
-        
-        channels = vgg_configs[vgg_config]
-        conv_layers = conv_layers_per_block[vgg_config]
-        
-        # VGG Blocks
-        self.vgg_blocks = nn.ModuleList()
+        # IRMAS Blocks
+        self.irmas_blocks = nn.ModuleList()
         in_channels = input_channels
         
         for i, (out_channels, num_conv) in enumerate(zip(channels, conv_layers)):
-            block = VGGBlock(in_channels, out_channels, num_conv, use_batch_norm)
-            self.vgg_blocks.append(block)
+            block = IRMASBlock(in_channels, out_channels, num_conv, use_batch_norm)
+            self.irmas_blocks.append(block)
             in_channels = out_channels
         
-        # Calculate feature map size after VGG blocks
+        # Calculate feature map size after IRMAS blocks
         # Input: (batch, 1, 128, 128)
-        # After 5 blocks with pool_size=2: (batch, 512, 4, 4)
-        self.feature_size = 128 // (2 ** len(channels))  # 4
-        self.feature_channels = channels[-1]  # 512
+        # After 3 blocks with pool_size=2: (batch, 128, 16, 16)
+        self.feature_size = 128 // (2 ** len(channels))  # 16
+        self.feature_channels = channels[-1]  # 128
         
         # Global Average Pooling
         self.global_avg_pool = nn.AdaptiveAvgPool2d((1, 1))
         
-        # Classification layers
+        # Simplified classifier - single layer for ultra-fast training
         self.classifier = nn.Sequential(
             nn.Dropout(dropout_rate),
-            nn.Linear(self.feature_channels, 512),
-            nn.ReLU(inplace=True),
-            nn.Dropout(dropout_rate),
-            nn.Linear(512, 256),
-            nn.ReLU(inplace=True),
-            nn.Dropout(dropout_rate),
-            nn.Linear(256, num_classes),
+            nn.Linear(self.feature_channels, num_classes),
             nn.Sigmoid()  # Multi-label classification
         )
         
@@ -131,7 +107,7 @@ class VGGCNN(nn.Module):
     
     def forward(self, x):
         """
-        Forward pass through VGG CNN.
+        Forward pass through IRMAS NN.
         
         Args:
             x: Input tensor of shape (batch_size, 1, 128, 128)
@@ -139,9 +115,9 @@ class VGGCNN(nn.Module):
         Returns:
             Output tensor of shape (batch_size, num_classes) with sigmoid activations
         """
-        # VGG feature extraction
-        for vgg_block in self.vgg_blocks:
-            x = vgg_block(x)
+        # IRMAS feature extraction
+        for irmas_block in self.irmas_blocks:
+            x = irmas_block(x)
         
         # Global average pooling
         x = self.global_avg_pool(x)
@@ -164,19 +140,18 @@ class VGGCNN(nn.Module):
         """
         feature_maps = {}
         
-        for i, vgg_block in enumerate(self.vgg_blocks):
-            x = vgg_block(x)
-            feature_maps[f'vgg_block_{i+1}'] = x.clone()
+        for i, irmas_block in enumerate(self.irmas_blocks):
+            x = irmas_block(x)
+            feature_maps[f'irmas_block_{i+1}'] = x.clone()
         
         return feature_maps
 
-class VGGConfig:
-    """Configuration class for VGG CNN model."""
+class IRMASConfig:
+    """Configuration class for IRMAS NN model."""
     
     def __init__(self):
         self.input_channels = 1
         self.num_classes = 11
-        self.vgg_config = 'C'  # VGG-16 style
         self.use_batch_norm = True
         self.dropout_rate = 0.5
         
@@ -187,59 +162,53 @@ class VGGConfig:
         self.weight_decay = 1e-4
         
     def get_model(self):
-        """Create VGG CNN model with current configuration."""
-        return VGGCNN(
+        """Create IRMAS NN model with current configuration."""
+        return IRMASNN(
             input_channels=self.input_channels,
             num_classes=self.num_classes,
-            vgg_config=self.vgg_config,
             use_batch_norm=self.use_batch_norm,
             dropout_rate=self.dropout_rate
         )
 
-def create_vgg_model(config=None):
+def create_irmas_model(config=None):
     """
-    Factory function to create VGG CNN model.
+    Factory function to create IRMAS NN model.
     
     Args:
-        config: VGGConfig object or None for default config
+        config: IRMASConfig object or None for default config
         
     Returns:
-        VGGCNN model instance
+        IRMASNN model instance
     """
     if config is None:
-        config = VGGConfig()
+        config = IRMASConfig()
     
     return config.get_model()
 
 # Example usage and testing
 if __name__ == "__main__":
-    # Test different VGG configurations
-    configs = ['A', 'B', 'C', 'D', 'E']
+    print(f"\n{'='*50}")
+    print(f"Testing IRMAS NN")
+    print(f"{'='*50}")
     
-    for config_name in configs:
-        print(f"\n{'='*50}")
-        print(f"Testing VGG-{config_name}")
-        print(f"{'='*50}")
-        
-        # Create model
-        config = VGGConfig()
-        config.vgg_config = config_name
-        model = create_vgg_model(config)
-        
-        # Create dummy input
-        batch_size = 4
-        x = torch.randn(batch_size, 1, 128, 128)
-        
-        # Forward pass
-        output = model(x)
-        
-        print(f"Input shape: {x.shape}")
-        print(f"Output shape: {output.shape}")
-        print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
-        
-        # Test feature maps
-        feature_maps = model.get_feature_maps(x)
-        for name, feature_map in feature_maps.items():
-            print(f"{name}: {feature_map.shape}")
-        
-        print(f"Output range: [{output.min():.3f}, {output.max():.3f}] (should be [0,1] for sigmoid)") 
+    # Create model
+    config = IRMASConfig()
+    model = create_irmas_model(config)
+    
+    # Create dummy input
+    batch_size = 4
+    x = torch.randn(batch_size, 1, 128, 128)
+    
+    # Forward pass
+    output = model(x)
+    
+    print(f"Input shape: {x.shape}")
+    print(f"Output shape: {output.shape}")
+    print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
+    
+    # Test feature maps
+    feature_maps = model.get_feature_maps(x)
+    for name, feature_map in feature_maps.items():
+        print(f"{name}: {feature_map.shape}")
+    
+    print(f"Output range: [{output.min():.3f}, {output.max():.3f}] (should be [0,1] for sigmoid)") 
