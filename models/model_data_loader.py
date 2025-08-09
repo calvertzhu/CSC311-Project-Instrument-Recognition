@@ -2,6 +2,7 @@
 """
 Comprehensive data loader for IRMAS dataset.
 Handles both training (single-label) and test (multi-label) data.
+Includes SpecAugment for audio data augmentation.
 """
 
 import torch
@@ -10,18 +11,84 @@ from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import sys
 from pathlib import Path
+import random
 
 # Add project root to path
 sys.path.append(str(Path(__file__).parent.parent))
 from config import LABEL_MAP
 
+class SpecAugment:
+    """
+    SpecAugment data augmentation for mel-spectrograms.
+    Applies frequency masking, time masking, and time warping.
+    """
+    
+    def __init__(self, freq_mask_prob=0.3, time_mask_prob=0.3, 
+                 freq_mask_width=15, time_mask_width=15, num_masks=2):
+        """
+        Initialize SpecAugment.
+        
+        Args:
+            freq_mask_prob: Probability of applying frequency masking
+            time_mask_prob: Probability of applying time masking  
+            freq_mask_width: Maximum width of frequency mask
+            time_mask_width: Maximum width of time mask
+            num_masks: Number of masks to apply
+        """
+        self.freq_mask_prob = freq_mask_prob
+        self.time_mask_prob = time_mask_prob
+        self.freq_mask_width = freq_mask_width
+        self.time_mask_width = time_mask_width
+        self.num_masks = num_masks
+    
+    def __call__(self, spectrogram):
+        """
+        Apply SpecAugment to a mel-spectrogram.
+        
+        Args:
+            spectrogram: Tensor of shape (1, freq_bins, time_frames) or (freq_bins, time_frames)
+            
+        Returns:
+            Augmented spectrogram
+        """
+        if len(spectrogram.shape) == 3:
+            spec = spectrogram.squeeze(0)  # Remove channel dimension
+            add_channel = True
+        else:
+            spec = spectrogram
+            add_channel = False
+        
+        freq_bins, time_frames = spec.shape
+        spec = spec.clone()
+        
+        # Frequency masking
+        if random.random() < self.freq_mask_prob:
+            for _ in range(self.num_masks):
+                mask_width = random.randint(1, min(self.freq_mask_width, freq_bins // 4))
+                mask_start = random.randint(0, freq_bins - mask_width)
+                spec[mask_start:mask_start + mask_width, :] = 0
+        
+        # Time masking  
+        if random.random() < self.time_mask_prob:
+            for _ in range(self.num_masks):
+                mask_width = random.randint(1, min(self.time_mask_width, time_frames // 4))
+                mask_start = random.randint(0, time_frames - mask_width)
+                spec[:, mask_start:mask_start + mask_width] = 0
+        
+        if add_channel:
+            spec = spec.unsqueeze(0)
+        
+        return spec
+
 class IRMASDataset(Dataset):
     """
     IRMAS dataset loader that handles both training and test data.
     Converts single-label training data to multi-label format.
+    Includes SpecAugment for training data augmentation.
     """
     
-    def __init__(self, data_file, label_file, is_multi_label=False):
+    def __init__(self, data_file, label_file, is_multi_label=False, 
+                 is_training=False, use_spec_augment=True):
         """
         Initialize dataset.
         
@@ -29,10 +96,26 @@ class IRMASDataset(Dataset):
             data_file: Path to feature file (.npy)
             label_file: Path to label file (.npy)
             is_multi_label: Whether the data is already multi-label
+            is_training: Whether this is training data (for augmentation)
+            use_spec_augment: Whether to apply SpecAugment during training
         """
         self.data = torch.from_numpy(np.load(data_file)).float()
         self.labels = np.load(label_file)
         self.is_multi_label = is_multi_label
+        self.is_training = is_training
+        self.use_spec_augment = use_spec_augment
+        
+        # Initialize SpecAugment for training
+        if self.is_training and self.use_spec_augment:
+            self.spec_augment = SpecAugment(
+                freq_mask_prob=0.3,
+                time_mask_prob=0.3, 
+                freq_mask_width=15,
+                time_mask_width=15,
+                num_masks=2
+            )
+        else:
+            self.spec_augment = None
         
         # Convert single-label to multi-label if needed
         if not is_multi_label:
@@ -45,26 +128,25 @@ class IRMASDataset(Dataset):
         print(f"Data shape: {self.data.shape}")
         print(f"Labels shape: {self.labels.shape}")
         print(f"Multi-label: {self.is_multi_label}")
+        print(f"Training mode: {self.is_training}")
+        print(f"SpecAugment: {self.use_spec_augment and self.is_training}")
     
     def _convert_to_multi_label(self, single_labels):
         """
-        Convert single-label indices to multi-label binary vectors.
+        Convert single-label format to multi-label format.
         
         Args:
-            single_labels: Array of single-label indices
+            single_labels: Array of single label indices
             
         Returns:
-            Multi-label binary matrix
+            Multi-label binary array of shape (n_samples, n_classes)
         """
-        num_samples = len(single_labels)
-        num_classes = 11  # Number of instrument classes
+        n_samples = len(single_labels)
+        n_classes = len(LABEL_MAP)
+        multi_labels = np.zeros((n_samples, n_classes), dtype=np.float32)
         
-        # Create binary matrix
-        multi_labels = np.zeros((num_samples, num_classes), dtype=np.float32)
-        
-        # Set 1 for each sample's class
-        for i, label_idx in enumerate(single_labels):
-            multi_labels[i, label_idx] = 1.0
+        for i, label in enumerate(single_labels):
+            multi_labels[i, label] = 1.0
         
         return multi_labels
     
@@ -72,15 +154,27 @@ class IRMASDataset(Dataset):
         return len(self.data)
     
     def __getitem__(self, idx):
-        # Get data and ensure correct shape
-        data = self.data[idx]
-        labels = self.labels[idx]
+        """
+        Get a single sample with optional SpecAugment.
         
-        # Add channel dimension if needed (batch, 128, 128) -> (batch, 1, 128, 128)
+        Args:
+            idx: Sample index
+            
+        Returns:
+            (data, label) tuple
+        """
+        data = self.data[idx]
+        label = self.labels[idx]
+        
+        # Add channel dimension if needed (128, 128) -> (1, 128, 128)
         if data.dim() == 2:
             data = data.unsqueeze(0)
         
-        return data, labels
+        # Apply SpecAugment during training
+        if self.spec_augment is not None:
+            data = self.spec_augment(data)
+        
+        return data, label
 
 def create_data_loaders(batch_size=32, train_val_split=0.2, random_state=42):
     """
@@ -98,21 +192,27 @@ def create_data_loaders(batch_size=32, train_val_split=0.2, random_state=42):
     train_dataset = IRMASDataset(
         "data/processed/X_train.npy", 
         "data/processed/y_train.npy",
-        is_multi_label=False
+        is_multi_label=False,
+        is_training=True,
+        use_spec_augment=True
     )
     
     # Load validation data (single-label, will be converted to multi-label)
     val_dataset = IRMASDataset(
         "data/processed/X_val.npy", 
         "data/processed/y_val.npy",
-        is_multi_label=False
+        is_multi_label=False,
+        is_training=False,
+        use_spec_augment=False
     )
     
     # Load test data (already multi-label)
     test_dataset = IRMASDataset(
         "data/test_processed/X_test.npy", 
         "data/test_processed/y_test.npy",
-        is_multi_label=True
+        is_multi_label=True,
+        is_training=False,
+        use_spec_augment=False
     )
     
     # Create data loaders
