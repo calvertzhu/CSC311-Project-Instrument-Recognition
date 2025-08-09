@@ -57,12 +57,17 @@ def train_model(args):
         model_name=model_name,
         batch_size=args.batch_size,
         learning_rate=args.lr,
-        weight_decay=args.weight_decay
+        weight_decay=args.weight_decay,
+        device=args.device
     )
     
     # Train
     print(f"Training {model_name} for {args.epochs} epochs...")
     trainer.train(args.epochs)
+    
+    # Plot training history
+    print("Generating training plots...")
+    trainer.plot_training_history()
     
     # Evaluate if requested
     if not args.no_test:
@@ -88,6 +93,8 @@ def main():
     parser.add_argument('--lr', type=float, default=0.001, help='Learning rate')
     parser.add_argument('--weight-decay', type=float, default=1e-4, help='Weight decay for regularization')
     parser.add_argument('--dropout', type=float, default=0.5, help='Dropout rate')
+    parser.add_argument('--device', type=str, default='auto', choices=['auto', 'cpu', 'cuda'], 
+                       help='Device to use for training (auto, cpu, cuda)')
     
     # Evaluation arguments
     parser.add_argument('--no-test', action='store_true', help='Skip test evaluation')

@@ -187,28 +187,28 @@ def create_irmas_model(config=None):
 
 # Example usage and testing
 if __name__ == "__main__":
-    print(f"\n{'='*50}")
-    print(f"Testing IRMAS NN")
-    print(f"{'='*50}")
-    
-    # Create model
-    config = IRMASConfig()
-    model = create_irmas_model(config)
-    
-    # Create dummy input
-    batch_size = 4
-    x = torch.randn(batch_size, 1, 128, 128)
-    
-    # Forward pass
-    output = model(x)
-    
-    print(f"Input shape: {x.shape}")
-    print(f"Output shape: {output.shape}")
-    print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
-    
-    # Test feature maps
-    feature_maps = model.get_feature_maps(x)
-    for name, feature_map in feature_maps.items():
-        print(f"{name}: {feature_map.shape}")
-    
-    print(f"Output range: [{output.min():.3f}, {output.max():.3f}] (should be [0,1] for sigmoid)") 
+        print(f"\n{'='*50}")
+        print(f"Testing IRMAS NN")
+        print(f"{'='*50}")
+        
+        # Create model
+        config = IRMASConfig()
+        model = create_irmas_model(config)
+        
+        # Create dummy input
+        batch_size = 4
+        x = torch.randn(batch_size, 1, 128, 128)
+        
+        # Forward pass
+        output = model(x)
+        
+        print(f"Input shape: {x.shape}")
+        print(f"Output shape: {output.shape}")
+        print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
+        
+        # Test feature maps
+        feature_maps = model.get_feature_maps(x)
+        for name, feature_map in feature_maps.items():
+            print(f"{name}: {feature_map.shape}")
+        
+        print(f"Output range: [{output.min():.3f}, {output.max():.3f}] (should be [0,1] for sigmoid)") 

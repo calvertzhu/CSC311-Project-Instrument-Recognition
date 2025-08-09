@@ -22,7 +22,7 @@ class IRMASTrainer:
     Handles both training and evaluation on test data.
     """
     
-    def __init__(self, model, model_name, batch_size=32, learning_rate=0.001, weight_decay=1e-4):
+    def __init__(self, model, model_name, batch_size=32, learning_rate=0.001, weight_decay=1e-4, device='auto'):
         """
         Initialize trainer.
         
@@ -32,12 +32,22 @@ class IRMASTrainer:
             batch_size: Training batch size
             learning_rate: Learning rate
             weight_decay: Weight decay for regularization
+            device: Device to use ('auto', 'cpu', 'cuda')
         """
         self.model = model
         self.model_name = model_name
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.weight_decay = weight_decay
+        
+        # Setup device
+        if device == 'auto':
+            self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        else:
+            self.device = torch.device(device)
+        
+        print(f"Using device: {self.device}")
+        self.model = self.model.to(self.device)
         
         # Create data loaders
         self.train_loader, self.val_loader, self.test_loader = create_data_loaders(batch_size=batch_size)
@@ -68,6 +78,9 @@ class IRMASTrainer:
         total_samples = 0
         
         for batch_idx, (data, labels) in enumerate(self.train_loader):
+            # Move data to device
+            data, labels = data.to(self.device), labels.to(self.device)
+            
             # Forward pass
             outputs = self.model(data)
             loss = self.criterion(outputs, labels)
@@ -100,6 +113,9 @@ class IRMASTrainer:
         
         with torch.no_grad():
             for data, labels in self.val_loader:
+                # Move data to device
+                data, labels = data.to(self.device), labels.to(self.device)
+                
                 # Forward pass
                 outputs = self.model(data)
                 loss = self.criterion(outputs, labels)
@@ -191,6 +207,9 @@ class IRMASTrainer:
         
         with torch.no_grad():
             for data, labels in self.test_loader:
+                # Move data to device
+                data, labels = data.to(self.device), labels.to(self.device)
+                
                 # Forward pass
                 outputs = self.model(data)
                 loss = self.criterion(outputs, labels)
@@ -216,18 +235,25 @@ class IRMASTrainer:
         all_predictions = np.concatenate(all_predictions, axis=0)
         all_labels = np.concatenate(all_labels, axis=0)
         
-        # Calculate per-instrument metrics
+        # Calculate per-instrument metrics and F1 scores
         instrument_metrics = self._calculate_instrument_metrics(all_predictions, all_labels)
+        f1_scores = self._calculate_f1_scores(all_predictions, all_labels)
         
         print(f"Test Results:")
         print(f"   Loss: {test_loss:.4f}")
         print(f"   Accuracy: {test_accuracy:.4f}")
+        print(f"   F1-Micro: {f1_scores['f1_micro']:.4f}")
+        print(f"   F1-Macro: {f1_scores['f1_macro']:.4f}")
+        print(f"   F1-Weighted: {f1_scores['f1_weighted']:.4f}")
         print(f"   Multi-label samples: {(all_labels.sum(axis=1) > 1).sum()}")
         print(f"   Single-label samples: {(all_labels.sum(axis=1) == 1).sum()}")
         
         return {
             'test_loss': test_loss,
             'test_accuracy': test_accuracy,
+            'f1_micro': f1_scores['f1_micro'],
+            'f1_macro': f1_scores['f1_macro'],
+            'f1_weighted': f1_scores['f1_weighted'],
             'predictions': all_predictions,
             'labels': all_labels,
             'instrument_metrics': instrument_metrics
@@ -258,6 +284,24 @@ class IRMASTrainer:
         
         return metrics
     
+    def _calculate_f1_scores(self, predictions, labels):
+        """Calculate F1 scores (micro, macro, weighted) for multi-label classification."""
+        from sklearn.metrics import f1_score
+        
+        # Threshold predictions
+        pred_binary = (predictions > 0.5).astype(int)
+        
+        # Calculate F1 scores
+        f1_micro = f1_score(labels, pred_binary, average='micro', zero_division=0)
+        f1_macro = f1_score(labels, pred_binary, average='macro', zero_division=0)
+        f1_weighted = f1_score(labels, pred_binary, average='weighted', zero_division=0)
+        
+        return {
+            'f1_micro': f1_micro,
+            'f1_macro': f1_macro,
+            'f1_weighted': f1_weighted
+        }
+    
     def save_model(self, filename):
         """Save model to file."""
         save_path = self.save_dir / filename
@@ -270,28 +314,33 @@ class IRMASTrainer:
         print(f"Loaded model from {load_path}")
     
     def plot_training_history(self):
-        """Plot training history."""
+        """Plot training history and save to root directory."""
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 5))
         
-        # Loss plot
-        ax1.plot(self.train_losses, label='Train Loss')
-        ax1.plot(self.val_losses, label='Val Loss')
+
+        ax1.plot(self.train_losses, label='Train Loss', linewidth=2, marker='o', markersize=4)
+        ax1.plot(self.val_losses, label='Val Loss', linewidth=2, marker='s', markersize=4)
         ax1.set_xlabel('Epoch')
         ax1.set_ylabel('Loss')
         ax1.set_title(f'{self.model_name} - Training Loss')
         ax1.legend()
-        ax1.grid(True)
+        ax1.grid(True, alpha=0.3)
         
-        # Accuracy plot
-        ax2.plot(self.train_accuracies, label='Train Accuracy')
-        ax2.plot(self.val_accuracies, label='Val Accuracy')
+
+        ax2.plot(self.train_accuracies, label='Train Accuracy', linewidth=2, marker='o', markersize=4)
+        ax2.plot(self.val_accuracies, label='Val Accuracy', linewidth=2, marker='s', markersize=4)
         ax2.set_xlabel('Epoch')
         ax2.set_ylabel('Accuracy')
         ax2.set_title(f'{self.model_name} - Training Accuracy')
         ax2.legend()
-        ax2.grid(True)
+        ax2.grid(True, alpha=0.3)
         
         plt.tight_layout()
+
+        save_path = f"{self.model_name}_training_history.png"
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        print(f"Training history plot saved as: {save_path}")
+        
         plt.show()
 
 def train_model(model, model_name, num_epochs=30, batch_size=32, learning_rate=0.001):
